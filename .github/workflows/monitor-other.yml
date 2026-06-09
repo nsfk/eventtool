@@ -1,0 +1,73 @@
+name: AOV Monitor - other (unscheduled)
+
+on:
+  schedule:
+    # CRON THEO UTC. VN = UTC+7.  Các domain khác (vd *.lienquan.garena.vn) mở KHÔNG cố định,
+    # nên quét rải đều — nhưng mỗi lượt chỉ quét MỘT lần rồi thoát (rất nhẹ, ~1-2 phút).
+    #
+    # Mặc định: mỗi 30 phút trong khung 02:00–16:30 UTC = 09:00–23:30 VN (bỏ ban đêm để
+    # tiết kiệm). Muốn quét 24/24: đổi thành '*/30 * * * *'. Muốn nhạy hơn: '*/15 ...'.
+    - cron: '*/30 2-16 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: aov-monitor-other
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15    # một lượt quét đơn rất ngắn; đây chỉ là chặn an toàn
+    permissions:
+      actions: write
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}
+
+      - name: Install dependencies
+        run: |
+          pip install requests playwright
+          npx playwright install-deps chromium
+
+      - name: Run monitor (other)
+        env:
+          EVENT_URL: ${{ secrets.EVENT_URL }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_FILE: 'monitor-other.yml'
+
+          MONITOR_GROUP: 'other'            # xử lý mọi URL KHÔNG thuộc nhóm moba
+          MOBA_HOST_SUFFIX: 'moba.garena.vn'
+          AUTO_DISABLE: 'false'             # tiếp tục theo dõi cho cả các sự kiện sau
+
+          CAPTURE_MODE: 'once'              # mỗi URL đóng gói một lần
+
+          # Quét đơn: MAX_RUNTIME_MINUTES=0 và không đặt WINDOW_END_VN -> mỗi lượt quét 1 lần rồi thoát.
+          WINDOW_END_VN: ''
+          MAX_RUNTIME_MINUTES: '0'
+        run: python monitor.py
+
+      # ----------------------------------------------------------------------
+      # LƯU Ý PHÚT ACTIONS cho workflow này (nó chạy nhiều lượt mỗi ngày):
+      #   - Repo CÔNG KHAI: phút miễn phí không giới hạn -> chạy thoải mái.
+      #   - Repo RIÊNG TƯ: ~2000 phút/tháng. Lịch */30 trong 09:00–23:30 VN ~ 30 lượt/ngày
+      #     × ~1.5 phút ≈ 45 phút/ngày ≈ 1350 phút/tháng (vẫn trong hạn mức). Nếu thấy tốn,
+      #     giãn cron (vd '0 2-16 * * *' = mỗi giờ) hoặc thu hẹp khung giờ.
+      # ----------------------------------------------------------------------
