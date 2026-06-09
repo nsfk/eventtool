@@ -1,0 +1,69 @@
+name: AOV Monitor - moba (Tue & Fri)
+
+on:
+  schedule:
+    # CRON THEO UTC. VN = UTC+7.  Sự kiện *.moba.garena.vn mở Thứ 3 & Thứ 6, ~10:00–11:15 VN.
+    # Khởi động TRƯỚC cửa sổ, lúc máy chủ GitHub ít tải, để giữ sẵn máy ảo xuyên suốt cửa sổ
+    # (không phụ thuộc việc GitHub cấp máy mới đúng lúc 10:00 — giờ cao điểm hay kẹt).
+    # Trường thứ trong tuần: 0=CN 1=T2 2=T3 3=T4 4=T5 5=T6 6=T7.  -> '2,5' = Thứ 3 & Thứ 6.
+    - cron: '33 2 * * 2,5'   # 09:33 VN, Thứ 3 & Thứ 6 — trigger chính
+    - cron: '48 2 * * 2,5'   # 09:48 VN, Thứ 3 & Thứ 6 — trigger dự phòng nếu trigger chính bị bỏ lỡ
+  workflow_dispatch:
+
+concurrency:
+  group: aov-monitor-moba
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 135   # > độ dài cửa sổ tối đa (09:33 -> 11:30 ≈ 117 phút) + đệm cho lần lưu trữ cuối
+    permissions:
+      actions: write
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}
+
+      - name: Install dependencies
+        run: |
+          pip install requests playwright
+          npx playwright install-deps chromium
+
+      - name: Run monitor (moba)
+        env:
+          EVENT_URL: ${{ secrets.EVENT_URL }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_FILE: 'monitor-moba.yml'
+
+          MONITOR_GROUP: 'moba'             # chỉ xử lý URL *.moba.garena.vn
+          MOBA_HOST_SUFFIX: 'moba.garena.vn'
+          AUTO_DISABLE: 'false'             # theo dõi lặp lại mỗi Thứ 3/Thứ 6 (không tự tắt)
+
+          # Mỗi sự kiện là một URL khác nhau -> 'once'. Nếu CÙNG một URL mở lại mỗi tuần,
+          # đổi thành 'daily' để đóng gói lại mỗi ngày URL đó mở.
+          CAPTURE_MODE: 'once'
+
+          # Chế độ cửa sổ: quét lặp trong cửa sổ tới 11:30 VN, bắt được là thoát ngay.
+          WINDOW_END_VN: '11:30'
+          SCAN_INTERVAL_SECONDS: '60'
+          SCAN_JITTER_SECONDS: '15'
+          MAX_RUNTIME_MINUTES: '130'        # giới hạn cứng dự phòng
+        run: python monitor.py
