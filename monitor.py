@@ -25,6 +25,7 @@ GHI HISTORY AN TOÀN KHI HAI WORKFLOW CHẠY SONG SONG:
 """
 
 import os
+import re
 import time
 import json
 import random
@@ -37,8 +38,10 @@ from urllib.parse import urlparse
 import requests
 
 # --- CẤU HÌNH CHUNG ---
+# EVENT_URL có thể chứa NHIỀU URL, phân tách bằng XUỐNG DÒNG, dấu phẩy hoặc chấm phẩy.
+# Khuyến nghị: mỗi URL một dòng (an toàn nhất vì URL ingame rất dài và chứa nhiều ký tự đặc biệt).
 URL_RAW = os.getenv('EVENT_URL', '')
-ALL_URLS = [u.strip() for u in URL_RAW.split(',') if u.strip()]
+ALL_URLS = [u.strip() for u in re.split(r'[\n,;]+', URL_RAW) if u.strip()]
 TG_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TG_ID = os.getenv('TELEGRAM_CHAT_ID')
 RUN_ID = os.getenv('GITHUB_RUN_NUMBER', '0')
@@ -83,6 +86,16 @@ def url_group(url):
     if host == MOBA_HOST_SUFFIX or host.endswith('.' + MOBA_HOST_SUFFIX):
         return 'moba'
     return 'other'
+
+
+def sanitize_url(url):
+    """
+    BẢO MẬT: loại bỏ TOÀN BỘ query string + fragment trước khi ghi vào history.json
+    (sẽ bị commit lên repo). Các sự kiện ingame nhét token/sig/seq/itopencodeparam/nickname
+    vào query -> tuyệt đối không được lưu phần đó. Chỉ giữ scheme://host/path để dễ nhận biết.
+    """
+    p = urlparse(url)
+    return f"{p.scheme}://{p.netloc}{p.path}"
 
 
 # Danh sách làm việc thực tế của lượt chạy này (đã lọc theo nhóm)
@@ -188,7 +201,17 @@ def quick_check(url):
             url, timeout=REQUEST_TIMEOUT, allow_redirects=True,
             headers={"User-Agent": USER_AGENT},
         )
-        return (res.status_code == 200) and (not is_fake_200(res.text))
+        live = (res.status_code == 200) and (not is_fake_200(res.text))
+        if not live:
+            n = len(res.text or "")
+            if res.status_code != 200:
+                reason = f"HTTP {res.status_code}"
+            elif n < 800:
+                reason = f"nội dung quá ngắn ({n} bytes)"
+            else:
+                reason = "khớp từ khóa bảo trì"
+            print(f"  -> chưa mở (lý do: {reason})")
+        return live
     except Exception as e:
         print(f"  Lỗi kết nối: {e}")
         return False
@@ -319,7 +342,8 @@ def scan_once(history):
             result = archive_event(url, ev_id)
             if result is True:
                 record = {
-                    "status": 200, "archived": True, "url": url,
+                    "status": 200, "archived": True,
+                    "url": sanitize_url(url),  # BẢO MẬT: không lưu token trong query
                     "group": url_group(url),
                     "time": get_vn_now().strftime('%Y-%m-%d %H:%M:%S'),
                     "by_run": RUN_ID,
