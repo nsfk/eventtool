@@ -3,25 +3,6 @@
 """
 AOV Event Monitor - dùng chung cho HAI loại lịch sự kiện.
 
-Một file script, một secret EVENT_URL (danh sách URL phân tách bằng dấu phẩy).
-Script TỰ PHÂN LOẠI URL theo tên miền và chỉ xử lý nhóm được giao qua MONITOR_GROUP:
-
-  - MONITOR_GROUP=moba  -> chỉ xử lý các URL có host khớp MOBA_HOST_SUFFIX
-                           (mặc định *.moba.garena.vn). Dùng cho workflow chạy
-                           Thứ 3 & Thứ 6 theo CỬA SỔ giờ (xem WINDOW_END_VN).
-  - MONITOR_GROUP=other -> xử lý mọi URL KHÔNG thuộc nhóm moba (vd *.lienquan.garena.vn).
-                           Dùng cho workflow quét rải đều cả ngày (một lượt rồi thoát).
-  - MONITOR_GROUP=all   -> xử lý toàn bộ (mặc định, tương thích cũ).
-
-VÌ SAO AN TOÀN (không lặp lại lỗi khiến tài khoản bị cấm):
-  - KHÔNG còn vòng lặp 5.5h và KHÔNG còn "fleet" gọi gh run list / gh run cancel.
-  - Nhóm moba: một lượt mỗi ngày Thứ 3/Thứ 6, khởi động TRƯỚC cửa sổ lúc máy chủ ít
-    tải rồi giữ máy xuyên suốt cửa sổ; bắt được là thoát ngay. Tối đa ~2h/lượt.
-  - Nhóm other: mỗi lượt chỉ quét MỘT lần (HTTP GET nhẹ) rồi thoát, ~1-2 phút.
-
-GHI HISTORY AN TOÀN KHI HAI WORKFLOW CHẠY SONG SONG:
-  - history.json được commit theo từng sự kiện, mỗi lần đều reset về bản remote mới
-    nhất rồi áp thay đổi và push lại (có thử lại) -> không xung đột git.
 """
 
 import os
@@ -98,6 +79,22 @@ def sanitize_url(url):
     return f"{p.scheme}://{p.netloc}{p.path}"
 
 
+_URL_QUERY_RE = re.compile(r'((?:https?://[^\s\'"?]+|/[^\s\'"?]*)\?)[^\s\'"]*')
+
+
+def redact_secrets(text):
+    """
+    BẢO MẬT: che query string của MỌI URL trong chuỗi trước khi in ra log Actions.
+    Thông báo lỗi của requests/Playwright thường kèm nguyên URL chứa token/sig ->
+    phải redact trước khi print, vì GitHub chỉ che đúng giá trị secret đầy đủ
+    chứ không chắc che được một URL con của danh sách EVENT_URL nhiều dòng.
+    """
+    try:
+        return _URL_QUERY_RE.sub(r'\1<redacted>', str(text))
+    except Exception:
+        return "<redacted>"
+
+
 # Danh sách làm việc thực tế của lượt chạy này (đã lọc theo nhóm)
 if MONITOR_GROUP in ('moba', 'other'):
     URL_LIST = [u for u in ALL_URLS if url_group(u) == MONITOR_GROUP]
@@ -167,8 +164,11 @@ def commit_archived_event(occ_key, record):
         if push.returncode == 0:
             return hist
         time.sleep(random.uniform(1.0, 3.0))
-    print("Cảnh báo: không push được history.json sau nhiều lần thử.")
-    return load_history()
+    print("Cảnh báo: không push được history.json sau nhiều lần thử "
+          "(sẽ thử lại ở lần chạy sau).")
+    hist = load_history()
+    hist[occ_key] = record
+    return hist
 
 
 def notify_telegram(text):
@@ -213,7 +213,7 @@ def quick_check(url):
             print(f"  -> chưa mở (lý do: {reason})")
         return live
     except Exception as e:
-        print(f"  Lỗi kết nối: {e}")
+        print(f"  Lỗi kết nối: {type(e).__name__}: {redact_secrets(e)}")
         return False
 
 
@@ -310,7 +310,7 @@ def archive_event(url, ev_id):
                 os.remove(fp)
         return True
     except Exception as e:
-        print(f"Lỗi lưu trữ {ev_id}: {e}")
+        print(f"Lỗi lưu trữ {ev_id}: {type(e).__name__}: {redact_secrets(e)}")
         return False
 
 
@@ -349,6 +349,7 @@ def scan_once(history):
                     "by_run": RUN_ID,
                 }
                 history = commit_archived_event(occ, record)
+                history[occ] = record  # ghim dedup trong lượt này dù git push có thất bại
                 print(f"  Đã lưu trữ xong: {occ}")
             elif result == "MAINTENANCE":
                 print("  Trang đang bảo trì (fake 200). Sẽ thử lại ở lượt quét sau.")
@@ -362,10 +363,13 @@ def scan_once(history):
 
 
 def compute_window_end_ts(start_ts):
-    """Thời điểm (epoch) dừng quét: gần nhất giữa WINDOW_END_VN (giờ VN) và MAX_RUNTIME."""
-    candidates = []
-    if MAX_RUNTIME_MINUTES and MAX_RUNTIME_MINUTES > 0:
-        candidates.append(start_ts + MAX_RUNTIME_MINUTES * 60)
+    """
+    Thời điểm (epoch) dừng quét:
+    - WINDOW_END_VN hợp lệ và CÒN ở tương lai -> dừng tại đó (không vượt MAX_RUNTIME nếu có).
+    - WINDOW_END_VN hợp lệ nhưng ĐÃ QUA       -> trả về start_ts (quét ĐÚNG MỘT lượt rồi thoát),
+      KHÔNG rơi vào MAX_RUNTIME để tránh chạy lố nhiều giờ khi runner khởi động trễ sau cửa sổ.
+    - WINDOW_END_VN trống/không hợp lệ         -> dùng MAX_RUNTIME nếu >0, ngược lại None (quét đơn).
+    """
     raw = (WINDOW_END_VN or "").strip()
     if raw:
         try:
@@ -374,13 +378,18 @@ def compute_window_end_ts(start_ts):
             end_vn = now_vn.replace(hour=int(hh), minute=int(mm),
                                     second=0, microsecond=0)
             secs = (end_vn - now_vn).total_seconds()
-            if secs > 0:
-                candidates.append(start_ts + secs)
-            else:
-                print("Cửa sổ hôm nay đã qua; chỉ dùng MAX_RUNTIME_MINUTES nếu được bật.")
+            if secs <= 0:
+                print("Cửa sổ hôm nay đã qua -> chỉ quét một lượt rồi thoát.")
+                return start_ts
+            deadline = start_ts + secs
+            if MAX_RUNTIME_MINUTES and MAX_RUNTIME_MINUTES > 0:
+                deadline = min(deadline, start_ts + MAX_RUNTIME_MINUTES * 60)
+            return deadline
         except Exception:
-            print(f"WINDOW_END_VN không hợp lệ ('{WINDOW_END_VN}'); bỏ qua giới hạn cửa sổ.")
-    return min(candidates) if candidates else None
+            print(f"WINDOW_END_VN không hợp lệ ('{WINDOW_END_VN}'); dùng MAX_RUNTIME nếu có.")
+    if MAX_RUNTIME_MINUTES and MAX_RUNTIME_MINUTES > 0:
+        return start_ts + MAX_RUNTIME_MINUTES * 60
+    return None
 
 
 def main():
