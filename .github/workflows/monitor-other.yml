@@ -24,26 +24,20 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5      # v5 chạy Node 24 (hết cảnh báo deprecation)
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6  # v6 chạy Node 24
         with:
           python-version: '3.11'
-          cache: 'pip'
-
-      - name: Cache Playwright browser
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}
+          # (Đã BỎ "cache: pip" — nó đòi requirements.txt để tạo khóa cache và gây lỗi.)
 
       - name: Install dependencies
         run: |
-          pip install requests playwright
-          npx playwright install-deps chromium
+          pip install -r requirements.txt
+          python -m playwright install-deps chromium
 
       - name: Run monitor (other)
         env:
