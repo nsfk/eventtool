@@ -1,10 +1,10 @@
 {
-    "pathway-keera0626-a0b2": {
-        "status": 200,
-        "archived": true,
-        "url": "https://pathway.moba.garena.vn/keera0626/?partition=1011&access_token=b7a4cb1bfbb29f21b40c77a6cc3ac82ff335e11cddcfa5823aa2c6738e74e379&algorithm=itop&encode=2&channelid=10&nickname=Yuri%20Tk&gameid=1137&os=2&ts=1780631828&version=5.36.000.9136&seq=1137-0F5C33F1-AEE7-421E-B70E-3BCE1DFFA90D-1780631828-763899&sig=0db619abcd9c89adad1086e377ca33ea&itopencodeparam=8EF1A4ABE7E35C4E695D4997D39FA585FA7F8FA50450807B2F365C1D6FD31974AED26650FDAA0B3722D2BF1E87BB8D3B489F715644DB510882F58654D22CF1079F93BFBA0377E05E56FA0DA142B004561D83F2FD905ACFC5D7333EE63F55FEA70404F66967FA8ADE293879809F647C68FE2C2760FC2617B8F22098D560A3E2EE",
-        "group": "moba",
-        "time": "2026-06-10 17:53:51",
-        "by_run": "2"
-    }
+  "pathway-keera0626-a0b2": {
+    "status": 200,
+    "archived": true,
+    "url": "https://pathway.moba.garena.vn/keera0626/",
+    "group": "moba",
+    "time": "2026-06-10 17:53:51",
+    "by_run": "2"
+  }
 }
