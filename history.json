@@ -1,10 +1,18 @@
 {
-  "pathway-keera0626-a0b2": {
-    "status": 200,
-    "archived": true,
-    "url": "https://pathway.moba.garena.vn/keera0626/",
-    "group": "moba",
-    "time": "2026-06-10 17:53:51",
-    "by_run": "2"
-  }
+    "pathway-keera0626-a0b2": {
+        "status": 200,
+        "archived": true,
+        "url": "https://pathway.moba.garena.vn/keera0626/",
+        "group": "moba",
+        "time": "2026-06-10 17:53:51",
+        "by_run": "2"
+    },
+    "tokendrawtem-Raz2606-10d6": {
+        "status": 200,
+        "archived": true,
+        "url": "https://tokendrawtem.moba.garena.vn/Raz2606/",
+        "group": "moba",
+        "time": "2026-06-12 22:08:44",
+        "by_run": "5"
+    }
 }
