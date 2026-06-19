@@ -14,5 +14,13 @@
         "group": "moba",
         "time": "2026-06-12 22:08:44",
         "by_run": "5"
+    },
+    "dbsevent-v1-8166": {
+        "status": 200,
+        "archived": true,
+        "url": "https://dbsevent.moba.garena.tw/v1/",
+        "group": "other",
+        "time": "2026-06-19 13:56:29",
+        "by_run": "41"
     }
 }
