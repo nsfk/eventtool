@@ -22,5 +22,13 @@
         "group": "other",
         "time": "2026-06-19 13:56:29",
         "by_run": "41"
+    },
+    "game-act-2e7c": {
+        "status": 200,
+        "archived": true,
+        "url": "https://game.moba.garena.tw/act/a20160624cdk/index.html",
+        "group": "other",
+        "time": "2026-06-19 13:56:48",
+        "by_run": "41"
     }
 }
