@@ -38,5 +38,13 @@
         "group": "other",
         "time": "2026-06-19 13:57:12",
         "by_run": "41"
+    },
+    "sportsfest-2606-c125": {
+        "status": 200,
+        "archived": true,
+        "url": "https://sportsfest.moba.garena.tw/2606/",
+        "group": "other",
+        "time": "2026-06-19 13:57:41",
+        "by_run": "41"
     }
 }
