@@ -46,5 +46,13 @@
         "group": "other",
         "time": "2026-06-19 13:57:41",
         "by_run": "41"
+    },
+    "drawdiscount-goverra0626-abe1": {
+        "status": 200,
+        "archived": true,
+        "url": "https://drawdiscount.moba.garena.vn/goverra0626/",
+        "group": "moba",
+        "time": "2026-06-22 19:32:07",
+        "by_run": "13"
     }
 }
