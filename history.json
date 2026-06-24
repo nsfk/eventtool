@@ -54,5 +54,13 @@
         "group": "moba",
         "time": "2026-06-22 19:32:07",
         "by_run": "13"
+    },
+    "shootingwar-event-da79": {
+        "status": 200,
+        "archived": true,
+        "url": "https://shootingwar.lienquan.garena.vn/",
+        "group": "other",
+        "time": "2026-06-24 12:58:36",
+        "by_run": "66"
     }
 }
