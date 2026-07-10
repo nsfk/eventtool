@@ -78,5 +78,13 @@
         "group": "moba",
         "time": "2026-07-10 19:26:58",
         "by_run": "27"
+    },
+    "banahills-event-08d2": {
+        "status": 200,
+        "archived": true,
+        "url": "https://banahills.lienquan.garena.vn/",
+        "group": "other",
+        "time": "2026-07-10 20:31:02",
+        "by_run": "159"
     }
 }
