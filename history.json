@@ -62,5 +62,13 @@
         "group": "other",
         "time": "2026-06-24 12:58:36",
         "by_run": "66"
+    },
+    "esportsvote-apl2026-b480": {
+        "status": 200,
+        "archived": true,
+        "url": "https://esportsvote.moba.garena.vn/apl2026/",
+        "group": "moba",
+        "time": "2026-07-10 19:25:13",
+        "by_run": "26"
     }
 }
